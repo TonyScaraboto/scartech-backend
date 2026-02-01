@@ -11,6 +11,7 @@ API REST para o sistema de assistência técnica ScarTech.
 2. **Conecte seu GitHub** na Koyeb
 
 3. **Suba o código para o GitHub:**
+
    ```bash
    cd backend
    git init
