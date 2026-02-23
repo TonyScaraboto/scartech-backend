@@ -159,11 +159,20 @@ public class FaturamentoService {
     public Map<String, Object> obterResumoMensal(Integer mes, Integer ano) throws IOException {
         List<Fatura> faturas = listarFaturas(mes, ano);
         
+        // FILTRA APENAS FATURAS DO TIPO "VENDA"
+        // Ordens de serviço (valorConserto) NÃO são computadas no faturamento
+        List<Fatura> faturasVenda = new ArrayList<>();
+        for (Fatura f : faturas) {
+            if ("venda".equals(f.getTipo())) {
+                faturasVenda.add(f);
+            }
+        }
+        
         Double totalPago = 0.0;
         Double totalPendente = 0.0;
         Double totalCancelado = 0.0;
         
-        for (Fatura f : faturas) {
+        for (Fatura f : faturasVenda) {
             if ("pago".equals(f.getStatus())) {
                 totalPago += f.getValor();
             } else if ("pendente".equals(f.getStatus())) {
@@ -180,7 +189,8 @@ public class FaturamentoService {
         resumo.put("totalPendente", totalPendente);
         resumo.put("totalCancelado", totalCancelado);
         resumo.put("totalGeral", totalPago + totalPendente + totalCancelado);
-        resumo.put("quantidade", faturas.size());
+        resumo.put("quantidade", faturasVenda.size());
+        resumo.put("observacao", "Inclui apenas faturas do tipo VENDA. Ordens de serviço não são computadas no faturamento.");
         
         return resumo;
     }
