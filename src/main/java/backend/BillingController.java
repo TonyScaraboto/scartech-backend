@@ -2,25 +2,38 @@ package backend;
 
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.ResponseEntity;
+import backend.service.FaturamentoService;
 import java.util.Map;
-import java.nio.file.Paths;
-import java.io.File;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 @RestController
 @RequestMapping("/api/billing")
 @CrossOrigin(origins = "*")
 public class BillingController {
+    private static final Logger logger = Logger.getLogger(BillingController.class.getName());
+    private final FaturamentoService faturamentoService;
+
+    public BillingController() {
+        this.faturamentoService = new FaturamentoService();
+    }
+
+    /**
+     * GET /api/billing/summary
+     * Retorna o resumo de faturamento do mês atual
+     * Mantido para compatibilidade com chamadas legadas
+     */
     @GetMapping("/summary")
-    public ResponseEntity<String> getBillingSummary() {
-        String basePath = System.getProperty("user.dir");
-        // Verifica se está rodando da pasta backend ou da pasta raiz
-        File pythonDir = new File(basePath, "python");
-        if (!pythonDir.exists()) {
-            pythonDir = new File(basePath, "backend/python");
+    public ResponseEntity<?> getBillingSummary() {
+        try {
+            logger.info("GET /api/billing/summary");
+            Map<String, Object> resumo = faturamentoService.obterResumoMensal(null, null);
+            return ResponseEntity.ok(resumo);
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Erro ao obter resumo de faturamento", e);
+            return ResponseEntity.status(500).body(
+                Map.of("erro", "Erro ao calcular faturamento", "mensagem", e.getMessage())
+            );
         }
-        String scriptPath = new File(pythonDir, "billing_summary.py").getAbsolutePath();
-        String workingDir = pythonDir.getAbsolutePath();
-        String result = PythonRunner.runPythonScript(scriptPath, workingDir);
-        return ResponseEntity.ok(result != null ? result : "Erro ao calcular faturamento");
     }
 }
