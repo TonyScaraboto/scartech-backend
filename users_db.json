@@ -1,0 +1,11 @@
+[ {
+  "userId" : "f0f4ca9a-b0be-4df1-9f9f-8b3b8e21d935",
+  "email" : "teste@scartech.com",
+  "passwordHash" : "4a97ffbd",
+  "createdAt" : "2026-02-23T06:53:42.629549800"
+}, {
+  "userId" : "64f1d258-282b-44c9-97ad-1e93c6e438e6",
+  "email" : "joao@scartech.com",
+  "passwordHash" : "4a980b60",
+  "createdAt" : "2026-02-23T06:54:32.446274900"
+} ]

@@ -7,26 +7,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.core.type.TypeReference;
 import backend.dto.ErrorResponse;
 import backend.service.UserAuthService;
-import backend.util.JwtUtil;
 import java.io.*;
 import java.util.*;
-import java.nio.file.*;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+/**
+ * Controller para dados do usuário com autenticação JWT
+ * Todos os endpoints requerem um token válido no header Authorization
+ */
 @RestController
-@RequestMapping("/api/data")
+@RequestMapping("/api/user-data")
 @CrossOrigin(origins = "*")
-public class UserDataController {
+public class UserDataControllerAuth {
     
-    private static final Logger logger = Logger.getLogger(UserDataController.class.getName());
+    private static final Logger logger = Logger.getLogger(UserDataControllerAuth.class.getName());
     private static final String DATA_DIR = "user_data";
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final UserAuthService userAuthService;
     
-    public UserDataController() {
+    public UserDataControllerAuth() {
         this.userAuthService = new UserAuthService();
-        // Criar diretório de dados se não existir
         try {
             new File(DATA_DIR).mkdirs();
             logger.info("Diretório de dados user_data criado/verificado");
@@ -36,10 +37,10 @@ public class UserDataController {
     }
 
     /**
-     * Valida o token JWT do header Authorization
+     * Extrai e valida o token JWT do header Authorization
      * @return userId se válido, null se inválido
      */
-    private String validarToken(String authHeader) {
+    private String extrairUserId(String authHeader) {
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             logger.warning("Token não fornecido no header Authorization");
             return null;
@@ -52,8 +53,21 @@ public class UserDataController {
         }
 
         String userId = userAuthService.extrairUserId(token);
-        logger.info("Token válido para usuário: " + userId);
+        logger.info("Acesso autorizado para usuário: " + userId);
         return userId;
+    }
+
+    /**
+     * Resposta de erro de autenticação
+     */
+    private ResponseEntity<?> erroAutenticacao() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            new ErrorResponse(
+                "Autenticação requerida",
+                "Adicione um token válido no header: Authorization: Bearer {token}",
+                401
+            )
+        );
     }
     
     private File getUserFile(String userId) {
@@ -92,13 +106,16 @@ public class UserDataController {
 
     // ========== GET ALL DATA ==========
     /**
-     * GET /api/data/{userId}
-     * Retorna todos os dados do usuário
+     * GET /api/user-data
+     * Retorna todos os dados do usuário autenticado
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<?> getAllData(@PathVariable String userId) {
+    @GetMapping
+    public ResponseEntity<?> getAllData(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId);
+            logger.info("GET /api/user-data");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data);
         } catch (IOException e) {
@@ -106,23 +123,17 @@ public class UserDataController {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
                 new ErrorResponse("Erro ao obter dados", e.getMessage(), 500)
             );
-        } catch (Exception e) {
-            logger.log(Level.SEVERE, "Erro inesperado", e);
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
-                new ErrorResponse("Erro inesperado", e.getMessage(), 500)
-            );
         }
     }
     
     // ========== ORDENS ==========
-    /**
-     * GET /api/data/{userId}/ordens
-     * Retorna todas as ordens do usuário
-     */
-    @GetMapping("/{userId}/ordens")
-    public ResponseEntity<?> getOrdens(@PathVariable String userId) {
+    @GetMapping("/ordens")
+    public ResponseEntity<?> getOrdens(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/ordens");
+            logger.info("GET /api/user-data/ordens");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("ordens", new ArrayList<>()));
         } catch (IOException e) {
@@ -133,14 +144,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/ordens
-     * Substitui todas as ordens do usuário
-     */
-    @PostMapping("/{userId}/ordens")
-    public ResponseEntity<?> saveOrdens(@PathVariable String userId, @RequestBody List<Map<String, Object>> ordens) {
+    @PostMapping("/ordens")
+    public ResponseEntity<?> saveOrdens(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                       @RequestBody List<Map<String, Object>> ordens) {
         try {
-            logger.info("POST /api/data/" + userId + "/ordens - Salvando " + ordens.size() + " ordens");
+            logger.info("POST /api/user-data/ordens");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             data.put("ordens", ordens);
             saveUserData(userId, data);
@@ -153,14 +164,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/ordens/add
-     * Adiciona uma nova ordem
-     */
-    @PostMapping("/{userId}/ordens/add")
-    public ResponseEntity<?> addOrdem(@PathVariable String userId, @RequestBody Map<String, Object> ordem) {
+    @PostMapping("/ordens/add")
+    public ResponseEntity<?> addOrdem(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> ordem) {
         try {
-            logger.info("POST /api/data/" + userId + "/ordens/add");
+            logger.info("POST /api/user-data/ordens/add");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             if (ordem == null || ordem.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Ordem inválida", "Os dados da ordem são obrigatórios", 400)
@@ -182,14 +193,13 @@ public class UserDataController {
     }
     
     // ========== VENDAS ==========
-    /**
-     * GET /api/data/{userId}/vendas
-     * Retorna todas as vendas do usuário
-     */
-    @GetMapping("/{userId}/vendas")
-    public ResponseEntity<?> getVendas(@PathVariable String userId) {
+    @GetMapping("/vendas")
+    public ResponseEntity<?> getVendas(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/vendas");
+            logger.info("GET /api/user-data/vendas");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("vendas", new ArrayList<>()));
         } catch (IOException e) {
@@ -200,14 +210,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/vendas
-     * Substitui todas as vendas do usuário
-     */
-    @PostMapping("/{userId}/vendas")
-    public ResponseEntity<?> saveVendas(@PathVariable String userId, @RequestBody List<Map<String, Object>> vendas) {
+    @PostMapping("/vendas")
+    public ResponseEntity<?> saveVendas(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                       @RequestBody List<Map<String, Object>> vendas) {
         try {
-            logger.info("POST /api/data/" + userId + "/vendas - Salvando " + vendas.size() + " vendas");
+            logger.info("POST /api/user-data/vendas");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             data.put("vendas", vendas);
             saveUserData(userId, data);
@@ -220,14 +230,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/vendas/add
-     * Adiciona uma nova venda
-     */
-    @PostMapping("/{userId}/vendas/add")
-    public ResponseEntity<?> addVenda(@PathVariable String userId, @RequestBody Map<String, Object> venda) {
+    @PostMapping("/vendas/add")
+    public ResponseEntity<?> addVenda(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> venda) {
         try {
-            logger.info("POST /api/data/" + userId + "/vendas/add");
+            logger.info("POST /api/user-data/vendas/add");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             if (venda == null || venda.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Venda inválida", "Os dados da venda são obrigatórios", 400)
@@ -249,14 +259,13 @@ public class UserDataController {
     }
     
     // ========== PRODUTOS ==========
-    /**
-     * GET /api/data/{userId}/produtos
-     * Retorna todos os produtos do usuário
-     */
-    @GetMapping("/{userId}/produtos")
-    public ResponseEntity<?> getProdutos(@PathVariable String userId) {
+    @GetMapping("/produtos")
+    public ResponseEntity<?> getProdutos(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/produtos");
+            logger.info("GET /api/user-data/produtos");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("produtos", new ArrayList<>()));
         } catch (IOException e) {
@@ -267,14 +276,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/produtos
-     * Substitui todos os produtos do usuário
-     */
-    @PostMapping("/{userId}/produtos")
-    public ResponseEntity<?> saveProdutos(@PathVariable String userId, @RequestBody List<Map<String, Object>> produtos) {
+    @PostMapping("/produtos")
+    public ResponseEntity<?> saveProdutos(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                         @RequestBody List<Map<String, Object>> produtos) {
         try {
-            logger.info("POST /api/data/" + userId + "/produtos - Salvando " + produtos.size() + " produtos");
+            logger.info("POST /api/user-data/produtos");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             Map<String, Object> data = loadUserData(userId);
             data.put("produtos", produtos);
             saveUserData(userId, data);
@@ -287,14 +296,14 @@ public class UserDataController {
         }
     }
     
-    /**
-     * POST /api/data/{userId}/produtos/add
-     * Adiciona um novo produto
-     */
-    @PostMapping("/{userId}/produtos/add")
-    public ResponseEntity<?> addProduto(@PathVariable String userId, @RequestBody Map<String, Object> produto) {
+    @PostMapping("/produtos/add")
+    public ResponseEntity<?> addProduto(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                       @RequestBody Map<String, Object> produto) {
         try {
-            logger.info("POST /api/data/" + userId + "/produtos/add");
+            logger.info("POST /api/user-data/produtos/add");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             if (produto == null || produto.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Produto inválido", "Os dados do produto são obrigatórios", 400)
@@ -316,21 +325,21 @@ public class UserDataController {
     }
     
     // ========== SYNC (salvar tudo de uma vez) ==========
-    /**
-     * POST /api/data/{userId}/sync
-     * Sincroniza todos os dados do usuário
-     */
-    @PostMapping("/{userId}/sync")
-    public ResponseEntity<?> syncData(@PathVariable String userId, @RequestBody Map<String, Object> allData) {
+    @PostMapping("/sync")
+    public ResponseEntity<?> syncData(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> allData) {
         try {
-            logger.info("POST /api/data/" + userId + "/sync - Sincronizando dados");
+            logger.info("POST /api/user-data/sync");
+            String userId = extrairUserId(authHeader);
+            if (userId == null) return erroAutenticacao();
+
             if (allData == null || allData.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Dados vazios", "Nenhum dado para sincronizar", 400)
                 );
             }
             saveUserData(userId, allData);
-            return ResponseEntity.ok(Map.of("success", true, "message", "Dados sincronizados com sucesso"));
+            return ResponseEntity.ok(Map.of("success", true, "message", "Dados sincronizados com sucesso. Seus dados estão disponíveis em qualquer dispositivo."));
         } catch (IOException e) {
             logger.log(Level.SEVERE, "Erro ao sincronizar dados", e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
