@@ -115,6 +115,71 @@ public class AuthenticationController {
     }
 
     /**
+     * POST /api/auth/login-clerk
+     * Autentica usuário via Clerk (email only)
+     * Se usuário não existe, cria automaticamente
+     */
+    @PostMapping("/login-clerk")
+    public ResponseEntity<?> loginClerk(@RequestBody Map<String, String> body) {
+        try {
+            logger.info("POST /api/auth/login-clerk - Autenticação via Clerk");
+
+            String email = body.get("email");
+            if (email == null || email.trim().isEmpty()) {
+                return ResponseEntity.badRequest().body(
+                    new ErrorResponse(
+                        "Email obrigatório",
+                        "Email é necessário para login Clerk",
+                        400
+                    )
+                );
+            }
+
+            if (!email.contains("@")) {
+                return ResponseEntity.badRequest().body(
+                    new ErrorResponse("Email inválido", "Formato de email inválido", 400)
+                );
+            }
+
+            // Tenta autenticar
+            try {
+                String token = userAuthService.autenticar(email, email);
+                String userId = JwtUtil.extractUserId(token);
+                AuthToken authToken = new AuthToken(
+                    token,
+                    userId,
+                    email,
+                    JwtUtil.getExpirationTimeSeconds()
+                );
+                logger.info("Usuário autenticado via Clerk: " + email);
+                return ResponseEntity.ok(authToken);
+            } catch (IllegalArgumentException e) {
+                // Usuário não existe, cria novo
+                logger.info("Usuário não existe, criando novo: " + email);
+                User novoUsuario = userAuthService.registrarUsuario(email, email);
+                
+                // Agora faz login com o novo usuário
+                String token = userAuthService.autenticar(email, email);
+                String userId = JwtUtil.extractUserId(token);
+                AuthToken authToken = new AuthToken(
+                    token,
+                    userId,
+                    email,
+                    JwtUtil.getExpirationTimeSeconds()
+                );
+                logger.info("Novo usuário criado e autenticado via Clerk: " + email);
+                return ResponseEntity.status(HttpStatus.CREATED).body(authToken);
+            }
+
+        } catch (Exception e) {
+            logger.log(Level.SEVERE, "Erro ao fazer login Clerk", e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(
+                new ErrorResponse("Erro ao fazer login", e.getMessage(), 500)
+            );
+        }
+    }
+
+    /**
      * POST /api/auth/logout
      * Realiza logout (invalidação do token no cliente)
      */
