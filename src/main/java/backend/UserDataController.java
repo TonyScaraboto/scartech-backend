@@ -92,13 +92,16 @@ public class UserDataController {
 
     // ========== GET ALL DATA ==========
     /**
-     * GET /api/data/{userId}
-     * Retorna todos os dados do usuário
+     * GET /api/data
+     * Retorna todos os dados do usuário autenticado
      */
-    @GetMapping("/{userId}")
-    public ResponseEntity<?> getAllData(@PathVariable String userId) {
+    @GetMapping
+    public ResponseEntity<?> getAllData(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId);
+            logger.info("GET /api/data");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data);
         } catch (IOException e) {
@@ -114,15 +117,27 @@ public class UserDataController {
         }
     }
     
-    // ========== ORDENS ==========
+    private ResponseEntity<?> erroAutenticacao() {
+        return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(
+            new ErrorResponse(
+                "Autenticação requerida",
+                "Adicione um token válido no header: Authorization: Bearer {token}",
+                401
+            )
+        );
+    }
+    
     /**
-     * GET /api/data/{userId}/ordens
-     * Retorna todas as ordens do usuário
+     * GET /api/data/ordens
+     * Retorna todas as ordens do usuário autenticado
      */
-    @GetMapping("/{userId}/ordens")
-    public ResponseEntity<?> getOrdens(@PathVariable String userId) {
+    @GetMapping("/ordens")
+    public ResponseEntity<?> getOrdens(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/ordens");
+            logger.info("GET /api/data/ordens");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("ordens", new ArrayList<>()));
         } catch (IOException e) {
@@ -134,13 +149,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/ordens
-     * Substitui todas as ordens do usuário
+     * POST /api/data/ordens
+     * Substitui todas as ordens do usuário autenticado
      */
-    @PostMapping("/{userId}/ordens")
-    public ResponseEntity<?> saveOrdens(@PathVariable String userId, @RequestBody List<Map<String, Object>> ordens) {
+    @PostMapping("/ordens")
+    public ResponseEntity<?> saveOrdens(@RequestHeader(value = "Authorization", required = false) String authHeader, 
+                                       @RequestBody List<Map<String, Object>> ordens) {
         try {
-            logger.info("POST /api/data/" + userId + "/ordens - Salvando " + ordens.size() + " ordens");
+            logger.info("POST /api/data/ordens - Salvando " + ordens.size() + " ordens");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             data.put("ordens", ordens);
             saveUserData(userId, data);
@@ -154,13 +173,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/ordens/add
+     * POST /api/data/ordens/add
      * Adiciona uma nova ordem
      */
-    @PostMapping("/{userId}/ordens/add")
-    public ResponseEntity<?> addOrdem(@PathVariable String userId, @RequestBody Map<String, Object> ordem) {
+    @PostMapping("/ordens/add")
+    public ResponseEntity<?> addOrdem(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> ordem) {
         try {
-            logger.info("POST /api/data/" + userId + "/ordens/add");
+            logger.info("POST /api/data/ordens/add");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             if (ordem == null || ordem.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Ordem inválida", "Os dados da ordem são obrigatórios", 400)
@@ -183,13 +206,16 @@ public class UserDataController {
     
     // ========== VENDAS ==========
     /**
-     * GET /api/data/{userId}/vendas
-     * Retorna todas as vendas do usuário
+     * GET /api/data/vendas
+     * Retorna todas as vendas do usuário autenticado
      */
-    @GetMapping("/{userId}/vendas")
-    public ResponseEntity<?> getVendas(@PathVariable String userId) {
+    @GetMapping("/vendas")
+    public ResponseEntity<?> getVendas(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/vendas");
+            logger.info("GET /api/data/vendas");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("vendas", new ArrayList<>()));
         } catch (IOException e) {
@@ -201,13 +227,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/vendas
-     * Substitui todas as vendas do usuário
+     * POST /api/data/vendas
+     * Substitui todas as vendas do usuário autenticado
      */
-    @PostMapping("/{userId}/vendas")
-    public ResponseEntity<?> saveVendas(@PathVariable String userId, @RequestBody List<Map<String, Object>> vendas) {
+    @PostMapping("/vendas")
+    public ResponseEntity<?> saveVendas(@RequestHeader(value = "Authorization", required = false) String authHeader, 
+                                       @RequestBody List<Map<String, Object>> vendas) {
         try {
-            logger.info("POST /api/data/" + userId + "/vendas - Salvando " + vendas.size() + " vendas");
+            logger.info("POST /api/data/vendas - Salvando " + vendas.size() + " vendas");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             data.put("vendas", vendas);
             saveUserData(userId, data);
@@ -221,13 +251,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/vendas/add
+     * POST /api/data/vendas/add
      * Adiciona uma nova venda
      */
-    @PostMapping("/{userId}/vendas/add")
-    public ResponseEntity<?> addVenda(@PathVariable String userId, @RequestBody Map<String, Object> venda) {
+    @PostMapping("/vendas/add")
+    public ResponseEntity<?> addVenda(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> venda) {
         try {
-            logger.info("POST /api/data/" + userId + "/vendas/add");
+            logger.info("POST /api/data/vendas/add");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             if (venda == null || venda.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Venda inválida", "Os dados da venda são obrigatórios", 400)
@@ -250,13 +284,16 @@ public class UserDataController {
     
     // ========== PRODUTOS ==========
     /**
-     * GET /api/data/{userId}/produtos
-     * Retorna todos os produtos do usuário
+     * GET /api/data/produtos
+     * Retorna todos os produtos do usuário autenticado
      */
-    @GetMapping("/{userId}/produtos")
-    public ResponseEntity<?> getProdutos(@PathVariable String userId) {
+    @GetMapping("/produtos")
+    public ResponseEntity<?> getProdutos(@RequestHeader(value = "Authorization", required = false) String authHeader) {
         try {
-            logger.info("GET /api/data/" + userId + "/produtos");
+            logger.info("GET /api/data/produtos");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             return ResponseEntity.ok(data.getOrDefault("produtos", new ArrayList<>()));
         } catch (IOException e) {
@@ -268,13 +305,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/produtos
-     * Substitui todos os produtos do usuário
+     * POST /api/data/produtos
+     * Substitui todos os produtos do usuário autenticado
      */
-    @PostMapping("/{userId}/produtos")
-    public ResponseEntity<?> saveProdutos(@PathVariable String userId, @RequestBody List<Map<String, Object>> produtos) {
+    @PostMapping("/produtos")
+    public ResponseEntity<?> saveProdutos(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                         @RequestBody List<Map<String, Object>> produtos) {
         try {
-            logger.info("POST /api/data/" + userId + "/produtos - Salvando " + produtos.size() + " produtos");
+            logger.info("POST /api/data/produtos - Salvando " + produtos.size() + " produtos");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             Map<String, Object> data = loadUserData(userId);
             data.put("produtos", produtos);
             saveUserData(userId, data);
@@ -288,13 +329,17 @@ public class UserDataController {
     }
     
     /**
-     * POST /api/data/{userId}/produtos/add
+     * POST /api/data/produtos/add
      * Adiciona um novo produto
      */
-    @PostMapping("/{userId}/produtos/add")
-    public ResponseEntity<?> addProduto(@PathVariable String userId, @RequestBody Map<String, Object> produto) {
+    @PostMapping("/produtos/add")
+    public ResponseEntity<?> addProduto(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                       @RequestBody Map<String, Object> produto) {
         try {
-            logger.info("POST /api/data/" + userId + "/produtos/add");
+            logger.info("POST /api/data/produtos/add");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             if (produto == null || produto.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Produto inválido", "Os dados do produto são obrigatórios", 400)
@@ -315,15 +360,18 @@ public class UserDataController {
         }
     }
     
-    // ========== SYNC (salvar tudo de uma vez) ==========
     /**
-     * POST /api/data/{userId}/sync
-     * Sincroniza todos os dados do usuário
+     * POST /api/data/sync
+     * Sincroniza todos os dados do usuário autenticado
      */
-    @PostMapping("/{userId}/sync")
-    public ResponseEntity<?> syncData(@PathVariable String userId, @RequestBody Map<String, Object> allData) {
+    @PostMapping("/sync")
+    public ResponseEntity<?> syncData(@RequestHeader(value = "Authorization", required = false) String authHeader,
+                                     @RequestBody Map<String, Object> allData) {
         try {
-            logger.info("POST /api/data/" + userId + "/sync - Sincronizando dados");
+            logger.info("POST /api/data/sync - Sincronizando dados");
+            String userId = validarToken(authHeader);
+            if (userId == null) return erroAutenticacao();
+            
             if (allData == null || allData.isEmpty()) {
                 return ResponseEntity.badRequest().body(
                     new ErrorResponse("Dados vazios", "Nenhum dado para sincronizar", 400)
