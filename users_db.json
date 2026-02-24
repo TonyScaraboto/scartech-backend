@@ -8,4 +8,14 @@
   "email" : "joao@scartech.com",
   "passwordHash" : "4a980b60",
   "createdAt" : "2026-02-23T06:54:32.446274900"
+}, {
+  "userId" : "a7d59695-fb00-42ed-873a-b01b47518641",
+  "email" : "usuario1@test.com",
+  "passwordHash" : "4a97ffbd",
+  "createdAt" : "2026-02-24T17:06:11.919264500"
+}, {
+  "userId" : "0c95abba-4104-475b-b5ee-646f8cbe56ab",
+  "email" : "usuario2@test.com",
+  "passwordHash" : "4a980b60",
+  "createdAt" : "2026-02-24T17:07:24.579160100"
 } ]

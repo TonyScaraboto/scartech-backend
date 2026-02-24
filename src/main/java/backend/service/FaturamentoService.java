@@ -159,8 +159,7 @@ public class FaturamentoService {
     public Map<String, Object> obterResumoMensal(Integer mes, Integer ano) throws IOException {
         List<Fatura> faturas = listarFaturas(mes, ano);
         
-        // FILTRA APENAS FATURAS DO TIPO "VENDA"
-        // Ordens de serviço (valorConserto) NÃO são computadas no faturamento
+        // FILTRA FATURAS DO TIPO "VENDA"
         List<Fatura> faturasVenda = new ArrayList<>();
         for (Fatura f : faturas) {
             if ("venda".equals(f.getTipo())) {
@@ -168,29 +167,56 @@ public class FaturamentoService {
             }
         }
         
-        Double totalPago = 0.0;
-        Double totalPendente = 0.0;
-        Double totalCancelado = 0.0;
+        Double totalVendas = 0.0;
+        Double totalConsertos = 0.0;
         
+        // Calcula total de vendas
         for (Fatura f : faturasVenda) {
-            if ("pago".equals(f.getStatus())) {
-                totalPago += f.getValor();
-            } else if ("pendente".equals(f.getStatus())) {
-                totalPendente += f.getValor();
-            } else if ("cancelado".equals(f.getStatus())) {
-                totalCancelado += f.getValor();
+            totalVendas += f.getValor();
+        }
+        
+        // Carrega e calcula total de consertos (ordens de serviço)
+        File userDataDir = new File("user_data");
+        if (userDataDir.exists()) {
+            File[] userFiles = userDataDir.listFiles((dir, name) -> name.endsWith(".json"));
+            if (userFiles != null) {
+                for (File userFile : userFiles) {
+                    try {
+                        Map<String, Object> userData = objectMapper.readValue(userFile, new TypeReference<Map<String, Object>>() {});
+                        @SuppressWarnings("unchecked")
+                        List<Map<String, Object>> ordens = (List<Map<String, Object>>) userData.getOrDefault("ordens", new ArrayList<>());
+                        
+                        for (Map<String, Object> ordem : ordens) {
+                            Object valorConserto = ordem.get("valorConserto");
+                            if (valorConserto != null) {
+                                if (valorConserto instanceof Number) {
+                                    totalConsertos += ((Number) valorConserto).doubleValue();
+                                } else if (valorConserto instanceof String) {
+                                    try {
+                                        totalConsertos += Double.parseDouble((String) valorConserto);
+                                    } catch (NumberFormatException e) {
+                                        logger.warning("Valor de conserto inválido: " + valorConserto);
+                                    }
+                                }
+                            }
+                        }
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Erro ao ler dados do usuário: " + userFile.getName(), e);
+                    }
+                }
             }
         }
+        
+        Double totalGeral = totalVendas + totalConsertos;
         
         Map<String, Object> resumo = new HashMap<>();
         resumo.put("mes", mes != null ? mes : LocalDate.now().getMonthValue());
         resumo.put("ano", ano != null ? ano : LocalDate.now().getYear());
-        resumo.put("totalPago", totalPago);
-        resumo.put("totalPendente", totalPendente);
-        resumo.put("totalCancelado", totalCancelado);
-        resumo.put("totalGeral", totalPago + totalPendente + totalCancelado);
+        resumo.put("totalVendas", totalVendas);
+        resumo.put("totalConsertos", totalConsertos);
+        resumo.put("totalGeral", totalGeral);
         resumo.put("quantidade", faturasVenda.size());
-        resumo.put("observacao", "Inclui apenas faturas do tipo VENDA. Ordens de serviço não são computadas no faturamento.");
+        resumo.put("observacao", "Total de vendas e consertos (ordens de serviço) computados juntos no faturamento.");
         
         return resumo;
     }
