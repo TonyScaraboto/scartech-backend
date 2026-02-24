@@ -43,6 +43,9 @@ public class UserAuthService {
         usuarios.add(novoUsuario);
         salvarUsuarios(usuarios);
 
+        // Cria arquivo de dados isolado para o novo usuário
+        criarDadosUsuario(userId);
+
         logger.info("Novo usuário registrado: " + email);
         return novoUsuario;
     }
@@ -164,5 +167,38 @@ public class UserAuthService {
      */
     public String extrairEmail(String token) {
         return JwtUtil.extractEmail(token);
+    }
+
+    /**
+     * Cria arquivo de dados isolado para novo usuário
+     */
+    private void criarDadosUsuario(String userId) throws IOException {
+        try {
+            // Cria diretório user_data se não existir
+            File userDataDir = new File("user_data");
+            if (!userDataDir.exists()) {
+                if (!userDataDir.mkdirs()) {
+                    logger.warning("Falha ao criar diretório user_data");
+                }
+            }
+
+            // Cria estrutura padrão vazia para o usuário
+            Map<String, Object> userData = new LinkedHashMap<>();
+            userData.put("userId", userId);
+            userData.put("ordens", new ArrayList<>());
+            userData.put("vendas", new ArrayList<>());
+            userData.put("produtos", new ArrayList<>());
+            userData.put("criadoEm", LocalDateTime.now().toString());
+            userData.put("atualizadoEm", LocalDateTime.now().toString());
+
+            // Salva arquivo isolado do usuário
+            File userFile = new File("user_data/" + userId + ".json");
+            objectMapper.writerWithDefaultPrettyPrinter().writeValue(userFile, userData);
+
+            logger.info("Dados isolados criados para usuário: " + userId);
+        } catch (IOException e) {
+            logger.log(Level.SEVERE, "Erro ao criar dados isolados do usuário: " + userId, e);
+            throw e;
+        }
     }
 }
